@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Environment variables
+.env
+
+# Credentials (NEVER commit!)
+credentials/
+!credentials/README.md
+
+# Data output
+data/
+*.json
+*.csv
+*.db
+
+# Except example files
+!.env.example
+!config.yaml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Playwright
+.playwright/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
