@@ -261,10 +261,6 @@ Update in `job_matcher.py` (line 291):
 resume_pdf = str(project_dir / "resume" / "YOUR_RESUME_FILE.pdf")
 ```
 
-Currently configured:
-```python
-resume_pdf = str(project_dir / "resume" / "Resume_NEW_ML_Pathakota_Pranavi_2.pdf")
-```
 
 ### Job Sources
 
@@ -325,7 +321,7 @@ self.model = genai.GenerativeModel("gemini-2.0-flash-exp")
 ### Claude Desktop shows "Using existing data"
 - **Fixed in latest version!** Update your code.
 - Restart Claude Desktop after code changes
-- Check that `linkedin_scraper.py` exists (not `search_and_save.py`)
+- Check that `linkedin_scraper.py` exists
 
 ### Getting duplicate jobs
 - **Fixed in latest version!** Update your code.
@@ -428,7 +424,7 @@ Your `mcp-server-config.json` is configured to use the complete version:
     "job-matcher": {
       "command": "/opt/anaconda3/envs/jobly/bin/python",
       "args": [
-        "/Users/pranavi/Documents/Courses/Programming_LLMs/Project/job_matcher_mcp_complete.py"
+        "/job_matcher_mcp_complete.py"
       ],
       "env": {
         "GEMINI_API_KEY": "your_key_here"
@@ -458,29 +454,9 @@ if json_files:
     json_files = [json_files[0]]  # Only most recent
 ```
 
-**Benefits:**
-- ✅ No more duplicate jobs
-- ✅ Always uses fresh data from latest search
-- ✅ Old files kept as backup/history
-
-### ✅ Fixed: MCP Server Path Issue (Dec 6, 2025)
-**Problem:** Claude Desktop showed "Using existing data" warning.
-
-**Solution:** Updated `job_matcher_mcp_complete.py` to call correct script:
-```python
-# Fixed: Changed from old filename to new one
-linkedin_script = self.project_dir / "linkedin_collector" / "linkedin_scraper.py"
-```
 
 **Result:** Claude Desktop now performs LIVE searches successfully.
 
-### ✅ Renamed: Resume → resume (Dec 6, 2025)
-**Change:** Renamed folder from `Resume/` to `resume/` (lowercase) for consistency.
-
-**Updated references in:**
-- `job_matcher.py`
-- `job_matcher_mcp_complete.py`
-- `README.md`
 
 ## �🚦 Status
 
@@ -490,11 +466,4 @@ linkedin_script = self.project_dir / "linkedin_collector" / "linkedin_scraper.py
 ✅ **Claude Desktop MCP**: Working (Live searches)
 ✅ **Full Pipeline**: Ready to use
 
-## 🤝 Contributing
-
-Feel free to:
-- Add new job sources
-- Improve AI matching prompts
-- Enhance email formatting
-- Add new features
 
