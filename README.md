@@ -39,7 +39,7 @@ Project/
 │   └── job.py                   # Job data structure
 │
 ├── resume/                      # Resume folder
-│   └── Resume_NEW_ML_Pathakota_Pranavi_2.pdf  # Your resume
+│   └── Resume.pdf  # Your resume
 │
 ├── job_matcher.py              # AI job matching engine
 ├── job_matcher_mcp_complete.py # MCP server (LIVE searches)

@@ -1,5 +1,5 @@
-AI
-Machine Learning
-artificial intelligence
-deep learning
-ML engineer
+research scientist
+AI researcher
+machine learning scientist
+deep learning research
+reinforcement learning engineer

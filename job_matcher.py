@@ -140,9 +140,15 @@ class JobMatcher:
             # Split into batches to avoid token limits
             batch_size = 20
             all_matches = []
+            
+            total_batches = (len(job_summaries) + batch_size - 1) // batch_size
+            logger.info(f"📦 Processing {len(job_summaries)} jobs in {total_batches} batches of {batch_size}")
 
             for batch_num in range(0, len(job_summaries), batch_size):
                 batch = job_summaries[batch_num:batch_num + batch_size]
+                current_batch = batch_num // batch_size + 1
+                
+                logger.info(f"🔄 Processing batch {current_batch}/{total_batches} ({len(batch)} jobs)")
 
                 prompt = f"""You are an expert job matcher. Analyze this resume and rank these jobs by relevance.
 
@@ -188,16 +194,27 @@ Respond in JSON format ONLY:
                         result_text = result_text.split("```")[1].split("```")[0]
 
                     result = json.loads(result_text)
-                    all_matches.extend(result.get('matches', []))
+                    batch_matches = result.get('matches', [])
+                    all_matches.extend(batch_matches)
 
-                    logger.info(f"✅ Processed batch {batch_num//batch_size + 1}")
+                    logger.info(f"✅ Batch {current_batch}/{total_batches}: Got {len(batch_matches)} matches")
 
+                except json.JSONDecodeError as e:
+                    logger.error(f"❌ Batch {current_batch}/{total_batches}: JSON parse error - {e}")
+                    logger.debug(f"Response text: {result_text[:200]}...")
+                    continue
                 except Exception as e:
-                    logger.warning(f"Failed to process batch: {e}")
+                    logger.error(f"❌ Batch {current_batch}/{total_batches}: Failed - {e}")
+                    import traceback
+                    logger.debug(traceback.format_exc())
                     continue
 
             # Sort by score and get top N
             all_matches.sort(key=lambda x: x.get('score', 0), reverse=True)
+            
+            logger.info(f"📊 Total matches from all batches: {len(all_matches)}")
+            logger.info(f"🎯 Requesting top {top_n} matches")
+            
             top_matches = all_matches[:top_n]
 
             # Map back to original jobs
@@ -209,8 +226,16 @@ Respond in JSON format ONLY:
                     job['match_score'] = match.get('score', 0)
                     job['match_reason'] = match.get('reason', '')
                     matched_jobs.append(job)
+                else:
+                    logger.warning(f"⚠️ Match index {idx} out of range (total jobs: {len(jobs)})")
 
-            logger.info(f"✅ Matched top {len(matched_jobs)} jobs")
+            logger.info(f"✅ Matched top {len(matched_jobs)} jobs (requested: {top_n})")
+            
+            if len(matched_jobs) < top_n:
+                logger.warning(f"⚠️ Only {len(matched_jobs)} matches returned (requested {top_n})")
+                logger.warning(f"   Total matches from LLM: {len(all_matches)}")
+                logger.warning(f"   Total jobs analyzed: {len(jobs)}")
+            
             return matched_jobs
 
         except Exception as e:

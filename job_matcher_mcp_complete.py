@@ -57,8 +57,17 @@ class JobMatcherMCPComplete:
         return {
             "tools": [
                 {
+                    "name": "load_jobs",
+                    "description": "INSTANT: Load jobs from latest data files without running collectors. Use this for quick access to already collected jobs (recommended for Claude Desktop to avoid timeouts).",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                    }
+                },
+                {
                     "name": "search_jobs",
-                    "description": "Search for jobs based on keywords, location, and preferences. This triggers collection from LinkedIn and GitHub.",
+                    "description": "FULL SEARCH: Run LinkedIn and GitHub collectors to fetch fresh jobs (takes 5+ minutes, may timeout in Claude Desktop). Use this when you need the latest data and are willing to wait. For instant access, use load_jobs instead.",
                     "inputSchema": {
                         "type": "object",
                         "properties": {
@@ -183,7 +192,9 @@ class JobMatcherMCPComplete:
         arguments = params.get("arguments", {})
 
         try:
-            if tool_name == "search_jobs":
+            if tool_name == "load_jobs":
+                result = await self._load_jobs(arguments)
+            elif tool_name == "search_jobs":
                 result = await self._search_jobs(arguments)
             elif tool_name == "get_job_statistics":
                 result = await self._get_statistics(arguments)
@@ -222,8 +233,58 @@ class JobMatcherMCPComplete:
                 "isError": True
             }
 
+    async def _load_jobs(self, args: Dict) -> str:
+        """Load jobs from latest collected data files (INSTANT - no collection)"""
+        try:
+            result_msg = "📂 LOADING JOBS FROM LATEST DATA FILES\n"
+            result_msg += "="*60 + "\n\n"
+            
+            jobs_dirs = [
+                str(self.project_dir / "linkedin_collector" / "data"),
+                str(self.project_dir / "github_collector" / "data"),
+                str(self.project_dir / "API_collector" / "data")
+            ]
+            
+            # Load from most recent files
+            self.collected_jobs = self.matcher.load_all_jobs(jobs_dirs)
+            
+            result_msg += f"✅ Loaded {len(self.collected_jobs)} jobs\n\n"
+            
+            # Show breakdown by source
+            sources = {}
+            for job in self.collected_jobs:
+                source = job.get("source", "Unknown")
+                sources[source] = sources.get(source, 0) + 1
+            
+            result_msg += "📊 Jobs by Source:\n"
+            for source, count in sorted(sources.items(), key=lambda x: x[1], reverse=True):
+                result_msg += f"   • {source}: {count} jobs\n"
+            
+            # Show which files were loaded
+            result_msg += "\n📁 Latest Files Loaded:\n"
+            for jobs_dir in jobs_dirs:
+                dir_path = Path(jobs_dir)
+                if dir_path.exists():
+                    json_files = sorted(dir_path.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True)
+                    if json_files:
+                        latest = json_files[0]
+                        result_msg += f"   • {dir_path.name}: {latest.name}\n"
+                    else:
+                        result_msg += f"   • {dir_path.name}: (no files)\n"
+            
+            result_msg += "\n" + "="*60 + "\n"
+            result_msg += f"✅ Jobs Ready!\n\n"
+            result_msg += f"💡 Next: Use 'match_jobs_with_resume' to find best matches!\n"
+            result_msg += f"💡 Or: Use 'get_job_statistics' for detailed breakdown\n"
+            
+            return result_msg
+            
+        except Exception as e:
+            import traceback
+            return f"❌ Error loading jobs: {str(e)}\n\n{traceback.format_exc()}"
+
     async def _search_jobs(self, args: Dict) -> str:
-        """Main search function - orchestrates LinkedIn and GitHub collection"""
+        """ACTUALLY search for new jobs by running collectors (may take 5+ minutes)"""
         keywords = args.get("keywords", [])
         location = args.get("location", "")
         job_type = args.get("job_type", "")
@@ -234,42 +295,50 @@ class JobMatcherMCPComplete:
             "job_type": job_type
         }
 
-        result_msg = f"🔍 Starting FRESH job search...\n\n"
-        result_msg += f"Keywords: {', '.join(keywords)}\n"
+        result_msg = "🔍 JOB SEARCH IN PROGRESS\n"
+        result_msg += "="*60 + "\n\n"
+        result_msg += f"🎯 Search Parameters:\n"
+        result_msg += f"   • Keywords: {', '.join(keywords)}\n"
         if location:
-            result_msg += f"Location: {location}\n"
+            result_msg += f"   • Location: {location}\n"
         if job_type:
-            result_msg += f"Job Type: {job_type}\n"
-        result_msg += "\n" + "="*60 + "\n\n"
+            result_msg += f"   • Type: {job_type}\n"
+        result_msg += "\n"
 
-        # Step 1: ACTUALLY RUN LinkedIn collector
-        result_msg += "📊 STEP 1: Running LinkedIn Job Collector\n"
-        linkedin_result = await self._run_linkedin_collector({"keywords": keywords})
-        result_msg += linkedin_result + "\n\n"
+        # Run LinkedIn collector
+        result_msg += await self._run_linkedin_collector({"keywords": keywords})
+        result_msg += "\n"
 
-        # Step 2: ACTUALLY RUN GitHub collector
-        result_msg += "📊 STEP 2: Running GitHub Job Collector\n"
-        github_result = await self._run_github_collector({"keywords": keywords})
-        result_msg += github_result + "\n\n"
+        # Run GitHub collector
+        result_msg += await self._run_github_collector({"keywords": keywords})
+        result_msg += "\n"
 
-        # Step 3: Load all collected jobs
-        result_msg += "📊 STEP 3: Loading Freshly Collected Jobs\n"
+        # Now load all collected jobs
+        result_msg += "📂 Loading collected jobs...\n"
         jobs_dirs = [
             str(self.project_dir / "linkedin_collector" / "data"),
             str(self.project_dir / "github_collector" / "data"),
             str(self.project_dir / "API_collector" / "data")
         ]
+        
         self.collected_jobs = self.matcher.load_all_jobs(jobs_dirs)
+        
         result_msg += f"✅ Loaded {len(self.collected_jobs)} total jobs\n\n"
-
-        result_msg += "="*60 + "\n"
-        result_msg += f"✅ Search Complete!\n\n"
-        result_msg += f"📈 Summary:\n"
-        result_msg += f"   • Total Jobs: {len(self.collected_jobs)}\n"
-        result_msg += f"   • Search Query: {', '.join(keywords)}\n"
-        result_msg += f"   • Fresh data from LinkedIn + GitHub\n"
-        result_msg += f"\n💡 Next: Use 'match_jobs_with_resume' to find best matches!\n"
-
+        
+        # Show breakdown by source
+        sources = {}
+        for job in self.collected_jobs:
+            source = job.get("source", "Unknown")
+            sources[source] = sources.get(source, 0) + 1
+        
+        result_msg += "📊 Jobs by Source:\n"
+        for source, count in sorted(sources.items(), key=lambda x: x[1], reverse=True):
+            result_msg += f"   • {source}: {count} jobs\n"
+        
+        result_msg += "\n" + "="*60 + "\n"
+        result_msg += f"✅ Search Complete! Found {len(self.collected_jobs)} jobs\n\n"
+        result_msg += f"💡 Next: Use 'match_jobs_with_resume' to find best matches!\n"
+        
         return result_msg
 
     async def _run_linkedin_collector(self, args: Dict) -> str:
