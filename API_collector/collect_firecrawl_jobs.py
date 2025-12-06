@@ -94,8 +94,16 @@ def collect_firecrawl_jobs(
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_file = output_path / f"firecrawl_jobs_{timestamp}.json"
             
-            jobs_data = [job.model_dump() for job in all_jobs]
-            with open(output_file, 'w') as f:
+            # Save with metadata structure (matching GitHub collector format)
+            jobs_data = {
+                "total_jobs": len(all_jobs),
+                "collection_date": datetime.now().isoformat(),
+                "source": "Firecrawl API (JobRight.ai, Simplify, Wellfound)",
+                "search_queries": len(search_queries) if search_queries else 0,
+                "jobs": [job.model_dump() for job in all_jobs]
+            }
+            
+            with open(output_file, 'w', encoding='utf-8') as f:
                 json.dump(jobs_data, f, indent=2, default=str)
             
             print(f"💾 Saved to: {output_file}")

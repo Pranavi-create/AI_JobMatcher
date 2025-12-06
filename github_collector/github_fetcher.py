@@ -136,29 +136,64 @@ class GitHubJobFetcher:
             if i < len(cells):
                 row_data[header] = cells[i]
 
-        # Extract company (clean HTML/markdown)
-        company = self._clean_text(row_data.get('company', ''))
+        # Extract company (clean HTML/markdown) - try multiple header variations
+        company = self._clean_text(
+            row_data.get('company', '') or 
+            row_data.get('company name', '') or
+            row_data.get('employer', '')
+        )
         if not company:
             return None
 
-        # Extract position
-        position = self._clean_text(row_data.get('position', ''))
+        # Extract position - try multiple header variations
+        position = self._clean_text(
+            row_data.get('position', '') or 
+            row_data.get('role', '') or
+            row_data.get('title', '') or
+            row_data.get('job title', '') or
+            row_data.get('program', '')
+        )
         if not position:
             return None
 
         # Extract location
-        location = self._clean_text(row_data.get('location', ''))
+        location = self._clean_text(
+            row_data.get('location', '') or
+            row_data.get('locations', '') or
+            row_data.get('office', '')
+        )
 
         # Extract salary
-        salary = self._clean_text(row_data.get('salary', ''))
+        salary = self._clean_text(
+            row_data.get('salary', '') or
+            row_data.get('compensation', '') or
+            row_data.get('pay', '')
+        )
 
-        # Extract application link
-        apply_link = self._extract_url(row_data.get('posting', '') or row_data.get('link', ''))
+        # Extract application link - try multiple header variations
+        link_raw = (
+            row_data.get('posting', '') or 
+            row_data.get('link', '') or
+            row_data.get('apply', '') or
+            row_data.get('application', '') or
+            row_data.get('application link', '') or
+            row_data.get('application/link', '') or  # Added this variation
+            row_data.get('url', '')
+        )
+        apply_link = self._extract_url(link_raw)
+        
+        # Debug: Print first few attempts
         if not apply_link or not apply_link.startswith('http'):
+            # Uncomment for debugging: print(f"  ⚠️  DEBUG: Failed to extract link from: {link_raw[:100] if link_raw else 'empty'}")
             return None
 
-        # Extract days since posted
-        age_str = row_data.get('age', '') or row_data.get('posted', '')
+        # Extract days since posted - try multiple header variations
+        age_str = (
+            row_data.get('age', '') or 
+            row_data.get('posted', '') or
+            row_data.get('date posted', '') or
+            row_data.get('date', '')
+        )
         days_posted = self._parse_age(age_str)
 
         # Determine remote option from location

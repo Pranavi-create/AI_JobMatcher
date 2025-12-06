@@ -15,16 +15,22 @@ An intelligent end-to-end job application pipeline that collects jobs from multi
 ```
 Project/
 ├── linkedin_collector/          # LinkedIn job collection
-│   ├── linkedin_searcher.py     # LinkedIn job search
-│   ├── search_and_save.py       # Save LinkedIn jobs
-│   └── job_search_results/      # LinkedIn job data
+│   ├── linkedin_searcher.py     # LinkedIn API search
+│   ├── linkedin_scraper.py      # Main search orchestrator
+│   ├── linkedin_job_aggregator.py  # Combines LinkedIn + Muse APIs
+│   ├── muse_api_client.py       # The Muse API integration
+│   ├── job_keywords.txt         # Search keywords (pipe-delimited)
+│   └── data/                    # LinkedIn job data (timestamped)
 │
 ├── github_collector/            # GitHub job collection
 │   ├── github_discovery.py      # Discover job repos
-│   └── github_fetcher.py        # Fetch GitHub jobs
+│   ├── github_fetcher.py        # Fetch GitHub jobs
+│   └── data/                    # GitHub job data (timestamped)
 │
-├── data/                        # Additional job sources
-│   └── jobs_output.json         # Jobs from various sources
+├── API_collector/               # Firecrawl web scraping
+│   ├── firecrawl_scraper.py     # LLM-powered scraper
+│   ├── collect_firecrawl_jobs.py  # Main collector
+│   └── data/                    # Firecrawl job data (timestamped)
 │
 ├── matched_jobs/                # AI matching results
 │   └── top_50_matches.json      # Top 50 ranked jobs
@@ -32,13 +38,16 @@ Project/
 ├── models/                      # Data models
 │   └── job.py                   # Job data structure
 │
-├── collectors/                  # Legacy collectors
+├── resume/                      # Resume folder
+│   └── Resume_NEW_ML_Pathakota_Pranavi_2.pdf  # Your resume
 │
 ├── job_matcher.py              # AI job matching engine
+├── job_matcher_mcp_complete.py # MCP server (LIVE searches)
+├── job_matcher_mcp_server.py   # MCP server (pre-computed data)
+├── job_matcher_mcp_stdio.py    # MCP server (testing/debugging)
 ├── send_email_smtp.py          # Gmail email sender
 ├── run_pipeline.py             # Main automation pipeline
-├── view_jobs.py                # View collected jobs
-├── main.py                     # Alternative job collector
+├── mcp-server-config.json      # Claude Desktop MCP config
 └── .env                        # Configuration (API keys)
 ```
 
@@ -105,17 +114,20 @@ This will:
 **LinkedIn Collector** (`linkedin_collector/`)
 - Searches LinkedIn for relevant jobs using LinkedIn API
 - Also searches The Muse Jobs API (combined search)
-- Saves to `linkedin_collector/job_search_results/`
+- Saves to `linkedin_collector/data/` with timestamps
 - Configure search keywords in `linkedin_collector/job_keywords.txt`
+  - Format: `keyword | location | limit`
+  - Example: `machine learning engineer | Remote | 30`
 
 ```bash
 cd linkedin_collector
-python3 search_and_save.py
+python3 linkedin_scraper.py
 ```
 
 **GitHub Collector** (`github_collector/`)
 - Discovers job repositories on GitHub
 - Fetches jobs from curated markdown tables (SimplifyJobs, etc.)
+- Saves to `github_collector/data/` with timestamps
 
 ```bash
 cd github_collector
@@ -125,14 +137,21 @@ python3 github_fetcher.py
 **Firecrawl Collector** (`API_collector/`) - Optional
 - LLM-powered web scraping for JobRight.ai, Simplify.jobs, Wellfound
 - Requires `FIRECRAWL_API_KEY` in `.env`
+- Saves to `API_collector/data/` with timestamps
 
 ```bash
 cd API_collector
 python3 collect_firecrawl_jobs.py
 ```
 
-**Other Sources** (`data/`)
-- Jobs from additional sources stored in `data/jobs_output.json`
+### Important: Data Loading Strategy
+
+**To avoid duplicates**, the system now loads **only the most recent file** from each collector's data folder:
+- `linkedin_collector/data/` → Latest file only
+- `github_collector/data/` → Latest file only
+- `API_collector/data/` → Latest file only
+
+Old files are kept as backup/history but not loaded during job matching.
 
 ### 2. AI Job Matching
 
@@ -239,20 +258,33 @@ Requires:
 
 Update in `job_matcher.py` (line 291):
 ```python
-resume_pdf = str(project_dir / "Resume" / "YOUR_RESUME_FILE.pdf")
+resume_pdf = str(project_dir / "resume" / "YOUR_RESUME_FILE.pdf")
 ```
 
 Currently configured:
 ```python
-resume_pdf = str(project_dir / "Resume" / "Resume_NEW_ML_Pathakota_Pranavi_2.pdf")
+resume_pdf = str(project_dir / "resume" / "Resume_NEW_ML_Pathakota_Pranavi_2.pdf")
 ```
 
 ### Job Sources
 
 Add/modify sources in collectors:
-- LinkedIn: `linkedin_collector/search_and_save.py`
+- LinkedIn: `linkedin_collector/linkedin_scraper.py`
 - GitHub: `github_collector/github_discovery.py`
-- Other: Add JSON files to `data/`
+- Firecrawl: `API_collector/collect_firecrawl_jobs.py`
+
+### Job Keywords Configuration
+
+Edit `linkedin_collector/job_keywords.txt` with pipe-delimited format:
+```
+machine learning engineer | Remote | 30
+AI engineer | San Francisco | 20
+data scientist | New York | 25
+```
+
+Format: `keyword | location | limit`
+- Leave location empty for all locations
+- Default limit is 30 if not specified
 
 ### Email Settings
 
@@ -289,6 +321,30 @@ self.model = genai.GenerativeModel("gemini-2.0-flash-exp")
 - Check internet connection
 - Verify API tokens in `.env`
 - Check rate limits for LinkedIn/GitHub
+
+### Claude Desktop shows "Using existing data"
+- **Fixed in latest version!** Update your code.
+- Restart Claude Desktop after code changes
+- Check that `linkedin_scraper.py` exists (not `search_and_save.py`)
+
+### Getting duplicate jobs
+- **Fixed in latest version!** Update your code.
+- System now loads only the most recent file from each data folder
+- Old files are kept as history but not loaded
+
+### Too many old JSON files in data folders
+**Optional cleanup:**
+```bash
+# View files by date (newest first)
+cd linkedin_collector/data && ls -lht
+
+# Keep latest, delete old ones (optional)
+# Be careful - this deletes files permanently!
+cd linkedin_collector/data
+ls -t *.json | tail -n +2 | xargs rm  # Keeps newest, deletes rest
+```
+
+**Or keep all for history** - they won't cause duplicates anymore!
 
 ## 📈 Pipeline Flow
 
@@ -332,11 +388,106 @@ self.model = genai.GenerativeModel("gemini-2.0-flash-exp")
 | `send_email_smtp.py` | Email sender | Send matched jobs |
 
 
-## 🚦 Status
+## 🤖 Claude Desktop Integration (MCP Servers)
+
+This project includes **Model Context Protocol (MCP)** servers for Claude Desktop integration. Choose the one that fits your needs:
+
+### 1️⃣ `job_matcher_mcp_complete.py` - RECOMMENDED for Claude Desktop
+**Live Job Searches**
+- ✅ Runs collectors LIVE via subprocess
+- ✅ Gets fresh data every search
+- ✅ Full-featured with all tools
+- ⏱️ Takes 5+ minutes per search
+- 🎯 Best for: Interactive Claude Desktop sessions
+
+**Tools Available:**
+- `search_jobs` - Run LinkedIn + GitHub collectors with keywords
+- `match_jobs_with_resume` - AI matching with Gemini
+- `send_top_matches_email` - Email delivery
+- `get_statistics` - View job stats
+- `analyze_job_match` - Deep dive on specific jobs
+
+### 2️⃣ `job_matcher_mcp_server.py` - Pre-computed Data
+**Fast Queries on Existing Data**
+- 📁 Loads from existing JSON files
+- ⚡ Instant results
+- 🎯 Best for: Quick analysis of collected data
+
+### 3️⃣ `job_matcher_mcp_stdio.py` - Testing/Debugging
+**Minimal STDIO Protocol**
+- 📁 Loads from existing JSON files
+- 🔧 Best for: MCP Inspector testing
+
+### Claude Desktop Configuration
+
+Your `mcp-server-config.json` is configured to use the complete version:
+
+```json
+{
+  "mcpServers": {
+    "job-matcher": {
+      "command": "/opt/anaconda3/envs/jobly/bin/python",
+      "args": [
+        "/Users/pranavi/Documents/Courses/Programming_LLMs/Project/job_matcher_mcp_complete.py"
+      ],
+      "env": {
+        "GEMINI_API_KEY": "your_key_here"
+      }
+    }
+  }
+}
+```
+
+**To use Claude Desktop:**
+1. Restart Claude Desktop after any code changes
+2. Use natural language: "Search for AI jobs and match with my resume"
+3. Claude will call the appropriate MCP tools automatically
+
+## � Recent Updates
+
+### ✅ Fixed: Duplicate Jobs Issue (Dec 6, 2025)
+**Problem:** System was loading ALL JSON files from data folders, causing duplicates.
+
+**Solution:** Modified `job_matcher.py` to load **only the most recent file** from each collector:
+```python
+# Now loads only the newest timestamped file
+json_files = sorted(jobs_path.glob("*.json"), 
+                   key=lambda x: x.stat().st_mtime, 
+                   reverse=True)
+if json_files:
+    json_files = [json_files[0]]  # Only most recent
+```
+
+**Benefits:**
+- ✅ No more duplicate jobs
+- ✅ Always uses fresh data from latest search
+- ✅ Old files kept as backup/history
+
+### ✅ Fixed: MCP Server Path Issue (Dec 6, 2025)
+**Problem:** Claude Desktop showed "Using existing data" warning.
+
+**Solution:** Updated `job_matcher_mcp_complete.py` to call correct script:
+```python
+# Fixed: Changed from old filename to new one
+linkedin_script = self.project_dir / "linkedin_collector" / "linkedin_scraper.py"
+```
+
+**Result:** Claude Desktop now performs LIVE searches successfully.
+
+### ✅ Renamed: Resume → resume (Dec 6, 2025)
+**Change:** Renamed folder from `Resume/` to `resume/` (lowercase) for consistency.
+
+**Updated references in:**
+- `job_matcher.py`
+- `job_matcher_mcp_complete.py`
+- `README.md`
+
+## �🚦 Status
 
 ✅ **Job Collection**: Working (LinkedIn + GitHub + The Muse + Firecrawl)
-✅ **AI Matching**: Working (Gemini 2.0 Flash Experimental)
+✅ **AI Matching**: Working (Gemini 2.5 Flash)
 ✅ **Email Sending**: Working (Gmail SMTP)
+✅ **Claude Desktop MCP**: Working (Live searches)
 ✅ **Full Pipeline**: Ready to use
 
 ## 🤝 Contributing

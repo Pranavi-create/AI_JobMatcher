@@ -1,3 +1,5 @@
 AI
 Machine Learning
-ML
+artificial intelligence
+deep learning
+ML engineer

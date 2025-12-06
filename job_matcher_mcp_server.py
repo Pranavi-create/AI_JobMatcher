@@ -178,13 +178,15 @@ class JobMatcherMCPServer:
         """Collect jobs from specified sources"""
         try:
             # Default sources
-            sources = args.get("sources", ["linkedin", "github", "data"])
+            sources = args.get("sources", ["linkedin", "github", "firecrawl"])
 
             jobs_dirs = []
             if "linkedin" in sources:
-                jobs_dirs.append(str(self.project_dir / "linkedin_collector" / "job_search_results"))
-            if "github" in sources or "data" in sources:
-                jobs_dirs.append(str(self.project_dir / "data"))
+                jobs_dirs.append(str(self.project_dir / "linkedin_collector" / "data"))
+            if "github" in sources:
+                jobs_dirs.append(str(self.project_dir / "github_collector" / "data"))
+            if "firecrawl" in sources or "data" in sources:
+                jobs_dirs.append(str(self.project_dir / "API_collector" / "data"))
 
             jobs = self.matcher.load_all_jobs(jobs_dirs)
 
@@ -227,8 +229,9 @@ class JobMatcherMCPServer:
 
             # Load jobs
             jobs_dirs = [
-                str(self.project_dir / "linkedin_collector" / "job_search_results"),
-                str(self.project_dir / "data")
+                str(self.project_dir / "linkedin_collector" / "data"),
+                str(self.project_dir / "github_collector" / "data"),
+                str(self.project_dir / "API_collector" / "data")
             ]
             all_jobs = self.matcher.load_all_jobs(jobs_dirs)
 
@@ -263,8 +266,9 @@ class JobMatcherMCPServer:
         """Get statistics about collected jobs"""
         try:
             jobs_dirs = [
-                str(self.project_dir / "linkedin_collector" / "job_search_results"),
-                str(self.project_dir / "data")
+                str(self.project_dir / "linkedin_collector" / "data"),
+                str(self.project_dir / "github_collector" / "data"),
+                str(self.project_dir / "API_collector" / "data")
             ]
             all_jobs = self.matcher.load_all_jobs(jobs_dirs)
 
@@ -294,8 +298,9 @@ class JobMatcherMCPServer:
 
             # Load jobs and get specific one
             jobs_dirs = [
-                str(self.project_dir / "linkedin_collector" / "job_search_results"),
-                str(self.project_dir / "data")
+                str(self.project_dir / "linkedin_collector" / "data"),
+                str(self.project_dir / "github_collector" / "data"),
+                str(self.project_dir / "API_collector" / "data")
             ]
             all_jobs = self.matcher.load_all_jobs(jobs_dirs)
 

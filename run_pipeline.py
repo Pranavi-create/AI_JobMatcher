@@ -28,7 +28,7 @@ def collect_linkedin_jobs():
     try:
         linkedin_dir = Path(__file__).parent / "linkedin_collector"
         result = subprocess.run(
-            ["python", "search_and_save.py"],
+            ["python", "collect_linkedin_jobs.py"],
             cwd=linkedin_dir,
             capture_output=False,
             text=True
@@ -55,7 +55,7 @@ def collect_github_jobs():
     try:
         github_dir = Path(__file__).parent / "github_collector"
         result = subprocess.run(
-            ["python", "github_fetcher.py"],
+            ["python", "collect_github_jobs.py"],
             cwd=github_dir,
             capture_output=False,
             text=True

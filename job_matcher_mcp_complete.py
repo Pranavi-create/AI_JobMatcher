@@ -255,8 +255,9 @@ class JobMatcherMCPComplete:
         # Step 3: Load all collected jobs
         result_msg += "📊 STEP 3: Loading Freshly Collected Jobs\n"
         jobs_dirs = [
-            str(self.project_dir / "linkedin_collector" / "job_search_results"),
-            str(self.project_dir / "data")
+            str(self.project_dir / "linkedin_collector" / "data"),
+            str(self.project_dir / "github_collector" / "data"),
+            str(self.project_dir / "API_collector" / "data")
         ]
         self.collected_jobs = self.matcher.load_all_jobs(jobs_dirs)
         result_msg += f"✅ Loaded {len(self.collected_jobs)} total jobs\n\n"
@@ -285,7 +286,7 @@ class JobMatcherMCPComplete:
             result += f"🔄 Running LinkedIn collector...\n"
 
             # ACTUALLY RUN the LinkedIn collector using jobly environment
-            linkedin_script = self.project_dir / "linkedin_collector" / "search_and_save.py"
+            linkedin_script = self.project_dir / "linkedin_collector" / "linkedin_scraper.py"
             proc_result = subprocess.run([
                 "/opt/anaconda3/envs/jobly/bin/python",
                 str(linkedin_script)
@@ -293,10 +294,13 @@ class JobMatcherMCPComplete:
 
             if proc_result.returncode == 0:
                 result += f"✅ LinkedIn collection completed!\n"
-                # Count new jobs
-                results_dir = self.project_dir / "linkedin_collector" / "job_search_results"
-                json_files = list(results_dir.glob("*.json"))
-                result += f"📊 Found {len(json_files)} LinkedIn result files\n"
+                # Get the most recent file
+                results_dir = self.project_dir / "linkedin_collector" / "data"
+                json_files = sorted(results_dir.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True)
+                if json_files:
+                    latest_file = json_files[0]
+                    result += f"📊 Latest file: {latest_file.name}\n"
+                    result += f"   (Total files in data/: {len(json_files)})\n"
             else:
                 result += f"⚠️ LinkedIn collector finished with warnings\n"
                 result += f"   Using existing data\n"
@@ -360,8 +364,9 @@ class JobMatcherMCPComplete:
         """Get job statistics"""
         try:
             jobs_dirs = [
-                str(self.project_dir / "linkedin_collector" / "job_search_results"),
-                str(self.project_dir / "data")
+                str(self.project_dir / "linkedin_collector" / "data"),
+                str(self.project_dir / "github_collector" / "data"),
+                str(self.project_dir / "API_collector" / "data")
             ]
             jobs = self.matcher.load_all_jobs(jobs_dirs)
 
@@ -410,8 +415,8 @@ class JobMatcherMCPComplete:
         try:
             resume_path = args.get("resume_path")
             if not resume_path:
-                # Use default resume from Resume folder
-                resume_path = str(self.project_dir / "Resume" / "Resume_NEW_ML_Pathakota_Pranavi_2.pdf")
+                # Use default resume from resume folder
+                resume_path = str(self.project_dir / "resume" / "Resume_NEW_ML_Pathakota_Pranavi_2.pdf")
 
             top_n = args.get("top_n", 10)
             min_score = args.get("min_score", 60)
@@ -428,8 +433,9 @@ class JobMatcherMCPComplete:
             else:
                 # Fallback: Load jobs from disk
                 jobs_dirs = [
-                    str(self.project_dir / "linkedin_collector" / "job_search_results"),
-                    str(self.project_dir / "data")
+                    str(self.project_dir / "linkedin_collector" / "data"),
+                    str(self.project_dir / "github_collector" / "data"),
+                    str(self.project_dir / "API_collector" / "data")
                 ]
                 all_jobs = self.matcher.load_all_jobs(jobs_dirs)
                 result += f"📊 Analyzing {len(all_jobs)} jobs from disk (no current search)\n\n"
@@ -475,8 +481,9 @@ class JobMatcherMCPComplete:
 
         try:
             jobs_dirs = [
-                str(self.project_dir / "linkedin_collector" / "job_search_results"),
-                str(self.project_dir / "data")
+                str(self.project_dir / "linkedin_collector" / "data"),
+                str(self.project_dir / "github_collector" / "data"),
+                str(self.project_dir / "API_collector" / "data")
             ]
             all_jobs = self.matcher.load_all_jobs(jobs_dirs)
 

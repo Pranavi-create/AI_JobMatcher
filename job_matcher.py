@@ -77,9 +77,14 @@ class JobMatcher:
                     logger.warning(f"Jobs directory not found: {jobs_dir}")
                     continue
 
-                # Load all JSON files
-                json_files = list(jobs_path.glob("*.json"))
-                logger.info(f"Found {len(json_files)} JSON files in {jobs_dir}")
+                # Load only the most recent JSON file (to avoid duplicates)
+                json_files = sorted(jobs_path.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True)
+                if json_files:
+                    json_files = [json_files[0]]  # Only take the most recent
+                    logger.info(f"Loading most recent file from {jobs_dir}: {json_files[0].name}")
+                else:
+                    logger.warning(f"No JSON files found in {jobs_dir}")
+                    continue
 
                 for json_file in json_files:
                     try:
@@ -288,12 +293,13 @@ def main():
 
     # Paths - using Path for better cross-platform support
     project_dir = Path(__file__).parent
-    resume_pdf = str(project_dir / "Resume" / "Resume_NEW_ML_Pathakota_Pranavi_2.pdf")
+    resume_pdf = str(project_dir / "resume" / "Resume_NEW_ML_Pathakota_Pranavi_2.pdf")
 
     # Load jobs from multiple sources
     jobs_dirs = [
-        str(project_dir / "linkedin_collector" / "job_search_results"),
-        str(project_dir / "data")
+        str(project_dir / "linkedin_collector" / "data"),
+        str(project_dir / "github_collector" / "data"),
+        str(project_dir / "API_collector" / "data")
     ]
 
     output_dir = project_dir / "matched_jobs"
@@ -315,7 +321,7 @@ def main():
 
     # Step 2: Load all jobs from multiple sources
     print("\n📊 Step 2: Loading collected jobs from all sources...")
-    print(f"   Sources: linkedin_collector/job_search_results/, data/")
+    print(f"   Sources: linkedin_collector/data/, github_collector/data/, API_collector/data/")
     all_jobs = matcher.load_all_jobs(jobs_dirs)
     if not all_jobs:
         print("❌ No jobs found in any source")

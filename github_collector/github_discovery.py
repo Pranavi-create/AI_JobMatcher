@@ -108,14 +108,20 @@ class GitHubRepoDiscovery:
         Returns:
             List of file information
         """
-        # Common patterns for job posting files
+        # Common patterns for job posting files (more flexible)
         patterns = [
-            "README.md",
+            "README",
             "NEW_GRAD",
             "NEWGRAD",
+            "NEW-GRAD",
             "JOBS",
+            "JOB",
             "INTERNSHIP",
-            "POSITIONS"
+            "INTERN",
+            "POSITIONS",
+            "POSITION",
+            "2026",
+            "2025"
         ]
 
         job_files = []
@@ -133,14 +139,23 @@ class GitHubRepoDiscovery:
                 if item["type"] == "file":
                     file_name = item["name"].upper()
 
-                    # Check if filename matches any pattern
-                    if any(pattern in file_name for pattern in patterns):
-                        job_files.append({
-                            "name": item["name"],
-                            "path": item["path"],
-                            "download_url": item["download_url"],
-                            "size": item["size"]
-                        })
+                    # Check if it's a markdown file and matches any pattern
+                    if file_name.endswith('.MD'):
+                        if any(pattern in file_name for pattern in patterns):
+                            job_files.append({
+                                "name": item["name"],
+                                "path": item["path"],
+                                "download_url": item["download_url"],
+                                "size": item["size"]
+                            })
+                        # Also include README.md as it often contains job links
+                        elif file_name == "README.MD":
+                            job_files.append({
+                                "name": item["name"],
+                                "path": item["path"],
+                                "download_url": item["download_url"],
+                                "size": item["size"]
+                            })
 
             if job_files:
                 print(f"  📄 Found {len(job_files)} potential job files in {owner}/{repo}")
